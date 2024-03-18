@@ -12,12 +12,31 @@
 
 <body>
   <div class="main">
-    <div class="sidebar"></div>
-    <canvas class="drawing-canvas" id="main-canvas" width="1280" height="720"></canvas>
+    <div class="sidebar-container">
+      <div class="sidebar-item" id="current-sample">
+        <canvas id="sidebar-canvas" width="200px" height="200px"></canvas>
+      </div>
+      <div class="sidebar-item" id="ground-truth">
+        <h2>Label:</h2>
+        <p id="sidebar-truth">--</p>
+      </div>
+      <div class="sidebar-item" id="current-prediction">
+        <h2>Prediction:</h2>
+        <p id="sidebar-prediction">--</p>
+      </div>
+      <div class="sidebar-button" id="next-button">
+        <p>Go Next</p>
+      </div>
+    </div>
+    <div class="main-canvas-container">
+      <canvas id="main-canvas" width="1200px" height="700px"></canvas>
+    </div>
   </div>
 </body>
 
 <script src="./js/numjs.js"></script>
+<script src="./js/data.js"></script>
+<script src="./js/weights.js"></script>
 <script src="./js/nn.js"></script>
 <script src="./js/visuals.js"></script>
 <script src="./js/main.js"></script>

@@ -1,7 +1,14 @@
 
+function test(img) {
+  let x = nj.array(img);
+  let y = nn.forward(x);
+  return y;
+}
 
-function main(args=null) {
-  let epochs = args?.epochs ?? 10;
+
+
+function train(args=null) {
+  let epochs = args?.epochs ?? 1;
   let batch_size = args?.bs ?? 1;
 
   // console.log("syn 0:\n", nn.syn0.inspect());
