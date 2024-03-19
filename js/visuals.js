@@ -8,17 +8,91 @@ const sidebarCtx = sidebarCanvas.getContext('2d');
 
 document.querySelector('#next-button').addEventListener('click', () => {
   ds.getNextSample();
+  mainCanvasState.reset();
+  
   renderSidebar();
+  renderMainCanvas();
 });
 
 const mainCanvas = document.querySelector('#main-canvas');
 const mainCtx = mainCanvas.getContext('2d');
 
+class CanvasState {
+  constructor() {
+    this.state = nj.zeros([28, 28]);
+    this.boundingRect = mainCanvas.getBoundingClientRect(); 
+
+    mainCanvas.addEventListener('click', (e) => {
+      let coords = this.coordToInd(e.clientX, e.clientY);
+      this.draw(coords.r, coords.c);
+      renderMainCanvas();
+    });
+
+    let mouseHeld = false;
+    document.addEventListener('mousedown', (e) => (mouseHeld = true));
+    document.addEventListener('mouseup', (e) => (mouseHeld = false));
+    document.addEventListener('mousemove', (e) => {
+      if (mouseHeld) {
+        let coords = this.coordToInd(e.clientX, e.clientY);
+        this.draw(coords.r, coords.c);
+        renderMainCanvas();
+      }
+    });
+  }
+
+  reset() {
+    this.state = nj.zeros([28, 28]);
+  }
+
+  coordToInd(x, y) {
+    let row = parseInt((y - this.boundingRect.y) * 28 / 700);
+    let col = parseInt((x - this.boundingRect.x) * 28 / 700);
+    if (row < 0 || col < 0 || row >= 28 || col >= 28) {
+      return {
+        r: -1, 
+        c: -1,
+      };
+    }
+    else {
+      return {
+        r: row,
+        c: col,
+      }
+    }
+  }
+
+  draw(r, c) {
+    const kernel = [
+      [0.2, 0.5, 0.2], 
+      [0.5, 0.8, 0.5],
+      [0.2, 0.5, 0.2], 
+    ];
+    const kernelCenter = 1;
+    const kernelSize = 3;
+
+    for (let i = 0; i < kernelSize; i++) {
+      for (let j = 0; j < kernelSize; j++) {
+        let stateR = r + (kernelCenter - i);
+        let stateC = c + (kernelCenter - j);
+        if (stateR < 0 || stateC < 0 || stateR > 28 || stateC > 28) continue;
+
+        this.state.set(stateR, stateC, this.state.get(stateR, stateC) + kernel[i][j]);
+      }
+    }
+  }
+
+  getState() {
+    return this.state;
+  }
+}
+
+const mainCanvasState = new CanvasState();
+
 function visualizeSample(ctx, xpos, ypos, size, sample) {
   let pixelSize = size / 28;
   let pic = nj.zeros([28, 28]); 
 
-  if (sample !== null) pic = sample.x.reshape(28, 28);
+  if (sample !== null) pic = sample.reshape(28, 28);
 
   for (let i = 0; i < 28; i++) {
     for (let j = 0; j < 28; j++) {
@@ -28,15 +102,31 @@ function visualizeSample(ctx, xpos, ypos, size, sample) {
   }
 }
 
+function visualizeOutputs(ctx, xpos, ypos, size, outputs) {
+  let pixelSize = size / 10;
+  let res = nj.zeros(10);
+
+  if (outputs !== null) res = nj.array(outputs);
+  res = res.subtract(res.min());
+  res = res.divide(res.max());
+
+  for (let i = 0; i < 10; i++) {
+    ctx.fillStyle = `hsl(0, 0%, ${res.get(i) * 100}%)`;
+    if (res.get(i) >= 0.999) ctx.fillStyle = 'red';  
+    ctx.fillRect(xpos, ypos + pixelSize * i, pixelSize, pixelSize);
+    ctx.font = `${parseInt(pixelSize / 1.5)}px Inter`;
+    ctx.fillText(`${i}`, xpos + pixelSize * 1.1, ypos + pixelSize * (i + 0.75)); 
+  }
+}
 
 
 
 /// --- RENDER MAIN CANVAS --- ///
 function renderMainCanvas (){
+  visualizeSample(mainCtx, 0, 0, 700, mainCanvasState.getState());
 
-
-
-  
+  let outputs = nn.forward(mainCanvasState.getState().flatten());
+  visualizeOutputs(mainCtx, 750, 0, 700, outputs);
 }
 renderMainCanvas();
 /// --- RENDER MAIN CANVAS --- ///
@@ -50,8 +140,8 @@ renderMainCanvas();
 
 /// --- RENDER SIDEBAR CANVAS --- ///
 function renderSidebar (){
-  sidebarCtx.clearRect(0, 0, sidebarCanvas.width, sidebarCanvas.height);
-  visualizeSample(sidebarCtx, 0, 0, 200, ds.getNextSample(false));
+  // sidebarCtx.clearRect(0, 0, sidebarCanvas.width, sidebarCanvas.height);
+  visualizeSample(sidebarCtx, 0, 0, 200, ds.getNextSample(false).x);
 
   if (ds.getNextSample(false) == null) {
     document.querySelector('#sidebar-truth').textContent = "--";
@@ -79,150 +169,4 @@ renderSidebar();
 
 
 
-
-
-
-
-
-
-// class Screen {
-//   constructor() {
-//     this.width = canvas.width;
-//     this.height = canvas.height;
-    
-//     this.centeredPoint = {};
-//     this.translatedX = 0;
-//     this.translatedY = 0;
-
-//     this.reflectOverXAxis = true;
-
-//     this.init();
-//   }
-
-//   init() {
-//     this.setCenteredPoint(this.width / 2 - 10, this.height / 2 - 10);
-//   }
-
-//   setCenteredPoint(x, y) {
-//     this.centeredPoint.x = x;
-//     this.centeredPoint.y = y;
-//     this.translatedX = this.width / 2 - this.centeredPoint.x;
-//     this.translatedY = this.height / 2 - this.centeredPoint.y;
-//   }
-
-//   clear() {
-//     ctx.clearRect(0, 0, this.width, this.height);
-//   }
-
-//   plotPoint(x, y, color='white') {
-//     x *= domainScaleFactor;
-//     x += this.translatedX;
-
-//     y *= rangeScaleFactor;
-//     y += this.translatedY;
-//     if (this.reflectOverXAxis) y = this.height - y;
-
-//     ctx.fillStyle = color;
-//     ctx.fillRect(x, y, 2, 2);
-//   }
-
-//   drawLine(x1, y1, x2, y2, color="#333") {
-//     x1 *= domainScaleFactor;
-//     x1 += this.translatedX;
-
-//     x2 *= domainScaleFactor;
-//     x2 += this.translatedX;
-
-//     y1 *= rangeScaleFactor;
-//     y1 += this.translatedY;
-//     if (this.reflectOverXAxis) y1 = this.height - y1;
-
-//     y2 *= rangeScaleFactor;
-//     y2 += this.translatedY;
-//     if (this.reflectOverXAxis) y2 = this.height - y2;
-
-//     ctx.strokeStyle = color;
-//     ctx.beginPath();
-//     ctx.moveTo(x1, y1);
-//     ctx.lineTo(x2, y2);
-//     ctx.stroke();
-//   }
-// }
-
-// function generatePointsAlongCurve(pointsNum, curve, domain, fuzz=0.1) {
-//   const stepSize = (domain[1] - domain[0]) / pointsNum;
-
-//   const points = [];
-//   for (let i = 0; i < pointsNum; i++) {
-//     const x = domain[0] + i * stepSize;
-//     const y = curve(x) + (Math.random() - 0.5) * fuzz;
-//     points.push({x, y});
-//   }
-
-//   return points;
-// }
-
-
-
-// const canvas = document.getElementById('main-canvas');
-// const ctx = canvas.getContext('2d');
-
-// const domain = [0, 10]; 
-// const range = [-1, 1];
-// let domainScaleFactor = canvas.width / (domain[1] - domain[0]); 
-// let rangeScaleFactor = canvas.height / (range[1] - range[0]); 
-
-// const screen = new Screen();
-// const nn = new NeuralNetwork();
-
-// const data = generatePointsAlongCurve(80, (x) => 0.04 * (x - 0.5) * x + 0.5, domain);
-
-// function render () {  
-//   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-//   screen.drawLine(domain[0], 0, domain[1], 0);
-//   screen.drawLine(0, range[0], 0, range[1]);
-
-//   data.forEach(point => screen.plotPoint(point.x, point.y));
-  
-//   let lineResolution = 600;
-//   for (let i = domain[0]; i < domain[1]; i += (domain[1] - domain[0]) / lineResolution) {
-//     const y = nn.forward(nj.array(i), grad=false);
-//     screen.plotPoint(i, y, 'red');
-//   }
-// }
-// render();
-
-
-
-
-
-
-
-
-
-
-
-// let mouseHeld = false;
-// document.addEventListener('mousedown', (e) => (mouseHeld = true));
-// document.addEventListener('mouseup', (e) => (mouseHeld = false));
-// document.addEventListener('mousemove', (e) => {
-//   if (mouseHeld) {
-//     let dx = e.movementX;
-//     let dy = e.movementY;
-//     if (screen.reflectOverXAxis) dy *= -1;
-    
-//     const x = screen.centeredPoint.x - dx;
-//     const y = screen.centeredPoint.y - dy;
-//     screen.setCenteredPoint(x, y);
-//     render();
-//   }
-// });
-
-// document.addEventListener('wheel', (e) => {
-//   const delta = e.deltaY;
-//   domainScaleFactor += delta / 100;
-//   rangeScaleFactor += delta / 100;
-//   render();
-// });
 
